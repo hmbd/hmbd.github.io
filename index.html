@@ -1,63 +1,482 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta name="Author" content="Gerard Ferrandez at http://www.dhteumeuleu.com/">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="HandheldFriendly" content="true">
+    <meta name="msvalidate.01" content="B6C713C1F4E407129EDEF7810A8B9BCB">
+    <meta name="keywords" content="canvas,3D,perspective,texturing,gallery">
+    <link rel="stylesheet" href="css/3d-image.css">
     <title>邓丽梅我爱你</title>
+    <style>
+        html {
+            overflow: hidden;
+            -ms-touch-action: none;
+            -ms-content-zooming: none;
+        }
 
-    <style type="text/css">
-        @font-face {
-            font-family: digit;
+        body {
+            position: absolute;
+            margin: 0px;
+            padding: 0px;
+            background: #fff;
+            width: 100%;
+            height: 100%;
+        }
+
+        #canvas {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: #fff;
         }
     </style>
-    <link href="css/default.css" type="text/css" rel="stylesheet">
-    <script type="text/javascript" src="js/jquery.js"></script>
-    <script type="text/javascript" src="js/garden.js"></script>
-    <script type="text/javascript" src="js/functions.js"></script>
+    <script type="text/javascript" src="js/analytics.js" async=""></script>
+    <script type="text/javascript" src="js/ge1doot.js"></script>
+    <script>
+        /*
+         * ==============================================================
+         * CANVAS 3D experiment -
+         * http://www.dhteumeuleu.com/
+         * Author Gerard Ferrandez - 7 June 2010
+         * ------------------------------------------------------------
+         * GFX: Vieeto Voom - http://www.flickr.com/photos/vieeto_voom/
+         * ------------------------------------------------------------
+         * Javascript released under the MIT license
+         * http://www.dhteumeuleu.com/LICENSE.html
+         * Last updated: 12 Dec 2012
+         * ===============================================================
+         */
+
+        "use strict";
+
+        (function () {
+            /* ==== definitions ==== */
+            var diapo = [], layers = [], ctx, pointer, scr, camera, light, fps = 0, quality = [1, 2],
+            // ---- poly constructor ----
+                    Poly = function (parent, face) {
+                        this.parent = parent;
+                        this.ctx = ctx;
+                        this.color = face.fill || false;
+                        this.points = [];
+                        if (!face.img) {
+                            // ---- create points ----
+                            for (var i = 0; i < 4; i++) {
+                                this.points[i] = new ge1doot.transform3D.Point(
+                                        parent.pc.x + (face.x[i] * parent.normalZ) + (face.z[i] * parent.normalX),
+                                        parent.pc.y + face.y[i],
+                                        parent.pc.z + (face.x[i] * parent.normalX) + (-face.z[i] * parent.normalZ)
+                                );
+                            }
+                            this.points[3].next = false;
+                        }
+                    },
+            // ---- diapo constructor ----
+                    Diapo = function (path, img, structure) {
+                        // ---- create image ----
+                        this.img = new ge1doot.transform3D.Image(
+                                this, path + img.img, 1, {
+                                    isLoaded: function (img) {
+                                        img.parent.isLoaded = true;
+                                        img.parent.loaded(img);
+                                    }
+                                }
+                        );
+                        this.visible = false;
+                        this.normalX = img.nx;
+                        this.normalZ = img.nz;
+                        // ---- point center ----
+                        this.pc = new ge1doot.transform3D.Point(img.x, img.y, img.z);
+                        // ---- target positions ----
+                        this.tx = img.x + (img.nx * Math.sqrt(camera.focalLength) * 20);
+                        this.tz = img.z - (img.nz * Math.sqrt(camera.focalLength) * 20);
+                        // ---- create polygons ----
+                        this.poly = [];
+                        for (var i = -1, p; p = structure[++i];) {
+                            layers[i] = (p.img === true ? 1 : 2);
+                            this.poly.push(
+                                    new Poly(this, p)
+                            );
+                        }
+                    },
+            // ---- init section ----
+                    init = function (json) {
+                        // draw poly primitive
+                        Poly.prototype.drawPoly = ge1doot.transform3D.drawPoly;
+                        // ---- init screen ----
+                        scr = new ge1doot.Screen({
+                            container: "canvas"
+                        });
+                        ctx = scr.ctx;
+                        scr.resize();
+                        // ---- init pointer ----
+                        pointer = new ge1doot.Pointer({
+                            tap: function () {
+                                if (camera.over) {
+                                    if (camera.over === camera.target.elem) {
+                                        // ---- return to the center ----
+                                        camera.target.x = 0;
+                                        camera.target.z = 0;
+                                        camera.target.elem = false;
+                                    } else {
+                                        // ---- goto diapo ----
+                                        camera.target.elem = camera.over;
+                                        camera.target.x = camera.over.tx;
+                                        camera.target.z = camera.over.tz;
+                                        // ---- adapt tesselation level to distance ----
+                                        for (var i = 0, d; d = diapo[i++];) {
+                                            var dx = camera.target.x - d.pc.x;
+                                            var dz = camera.target.z - d.pc.z;
+                                            var dist = Math.sqrt(dx * dx + dz * dz);
+                                            var lev = (dist > 1500) ? quality[0] : quality[1];
+                                            d.img.setLevel(lev);
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                        // ---- init camera ----
+                        camera = new ge1doot.transform3D.Camera({
+                            focalLength: Math.sqrt(scr.width) * 10,
+                            easeTranslation: 0.025,
+                            easeRotation: 0.06,
+                            disableRz: true
+                        }, {
+                            move: function () {
+                                this.over = false;
+                                // ---- rotation ----
+                                if (pointer.isDraging) {
+                                    this.target.elem = false;
+                                    this.target.ry = -pointer.Xi * 0.01;
+                                    this.target.rx = (pointer.Y - scr.height * 0.5) / (scr.height * 0.5);
+                                } else {
+                                    if (this.target.elem) {
+                                        this.target.ry = Math.atan2(
+                                                this.target.elem.pc.x - this.x,
+                                                this.target.elem.pc.z - this.z
+                                        );
+                                    }
+                                }
+                                this.target.rx *= 0.9;
+                            }
+                        });
+                        camera.z = -10000;
+                        camera.py = 0;
+                        // ---- create images ----
+                        for (var i = 0, img; img = json.imgdata[i++];) {
+                            diapo.push(
+                                    new Diapo(
+                                            json.options.imagesPath,
+                                            img,
+                                            json.structure
+                                    )
+                            );
+                        }
+                        // ---- start engine ---- >>>
+                        setInterval(function () {
+                            quality = (fps > 50) ? [2, 3] : [1, 2];
+                            fps = 0;
+                        }, 1000);
+                        run();
+                    },
+            // ---- main loop ----
+                    run = function () {
+                        // ---- clear screen ----
+                        ctx.clearRect(0, 0, scr.width, scr.height);
+                        // ---- camera ----
+                        camera.move();
+                        // ---- draw layers ----
+                        for (var k = -1, l; l = layers[++k];) {
+                            light = false;
+                            for (var i = 0, d; d = diapo[i++];) {
+                                (l === 1 && d.draw()) ||
+                                (d.visible && d.poly[k].draw());
+                            }
+                        }
+                        // ---- cursor ----
+                        if (camera.over && !pointer.isDraging) {
+                            scr.setCursor("pointer");
+                        } else {
+                            scr.setCursor("move");
+                        }
+                        // ---- loop ----
+                        fps++;
+                        requestAnimFrame(run);
+                    };
+            /* ==== prototypes ==== */
+            Poly.prototype.draw = function () {
+                // ---- color light ----
+                var c = this.color;
+                if (c.light || !light) {
+                    var s = c.light ? this.parent.light : 1;
+                    // ---- rgba color ----
+                    light = "rgba(" +
+                            Math.round(c.r * s) + "," +
+                            Math.round(c.g * s) + "," +
+                            Math.round(c.b * s) + "," + (c.a || 1) + ")";
+                    ctx.fillStyle = light;
+                }
+                // ---- paint poly ----
+                if (!c.light || this.parent.light < 1) {
+                    // ---- projection ----
+                    for (
+                            var i = 0;
+                            this.points[i++].projection();
+                    );
+                    this.drawPoly();
+                    ctx.fill();
+                }
+            }
+            /* ==== image onload ==== */
+            Diapo.prototype.loaded = function (img) {
+                // ---- create points ----
+                var d = [-1, 1, 1, -1, 1, 1, -1, -1];
+                var w = img.texture.width * 0.5;
+                var h = img.texture.height * 0.5;
+                for (var i = 0; i < 4; i++) {
+                    img.points[i] = new ge1doot.transform3D.Point(
+                            this.pc.x + (w * this.normalZ * d[i]),
+                            this.pc.y + (h * d[i + 4]),
+                            this.pc.z + (w * this.normalX * d[i])
+                    );
+                }
+            }
+            /* ==== images draw ==== */
+            Diapo.prototype.draw = function () {
+                // ---- visibility ----
+                this.pc.projection();
+                if (this.pc.Z > -(camera.focalLength >> 1) && this.img.transform3D(true)) {
+                    // ---- light ----
+                    this.light = 0.5 + Math.abs(this.normalZ * camera.cosY - this.normalX * camera.sinY) * 0.6;
+                    // ---- draw image ----
+                    this.visible = true;
+                    this.img.draw();
+                    // ---- test pointer inside ----
+                    if (pointer.hasMoved || pointer.isDown) {
+                        if (
+                                this.img.isPointerInside(
+                                        pointer.X,
+                                        pointer.Y
+                                )
+                        ) camera.over = this;
+                    }
+                } else this.visible = false;
+                return true;
+            }
+            return {
+                // --- load data ----
+                load: function (data) {
+                    window.addEventListener('load', function () {
+                        ge1doot.loadJS(
+                                "js/imageTransform3D.js",
+                                init, data
+                        );
+                    }, false);
+                }
+            }
+        })().load({
+            imgdata: [
+                // north
+                {img: 'image/1.png', x: -1000, y: 0, z: 1500, nx: 0, nz: 1},
+                {img: 'image/2.png', x: 0, y: 0, z: 1500, nx: 0, nz: 1},
+                {img: 'image/3.png', x: 1000, y: 0, z: 1500, nx: 0, nz: 1},
+                // east
+                {img: 'image/4.png', x: 1500, y: 0, z: 1000, nx: -1, nz: 0},
+                {img: 'image/5.png', x: 1500, y: 0, z: 0, nx: -1, nz: 0},
+                {img: 'image/6.png', x: 1500, y: 0, z: -1000, nx: -1, nz: 0},
+                // south
+                {img: 'image/7.png', x: 1000, y: 0, z: -1500, nx: 0, nz: -1},
+                {img: 'image/8.png', x: 0, y: 0, z: -1500, nx: 0, nz: -1},
+                {img: 'image/9.png', x: -1000, y: 0, z: -1500, nx: 0, nz: -1},
+                // west
+                {img: 'image/10.png', x: -1500, y: 0, z: -1000, nx: 1, nz: 0},
+                {img: 'image/11.png', x: -1500, y: 0, z: 0, nx: 1, nz: 0},
+                {img: 'image/12.png', x: -1500, y: 0, z: 1000, nx: 1, nz: 0}
+            ],
+            structure: [
+                {
+                    // wall
+                    fill: {r: 255, g: 255, b: 255, light: 1},
+                    x: [-1001, -490, -490, -1001],
+                    z: [-500, -500, -500, -500],
+                    y: [500, 500, -500, -500]
+                }, {
+                    // wall
+                    fill: {r: 255, g: 255, b: 255, light: 1},
+                    x: [-501, 2, 2, -500],
+                    z: [-500, -500, -500, -500],
+                    y: [500, 500, -500, -500]
+                }, {
+                    // wall
+                    fill: {r: 255, g: 255, b: 255, light: 1},
+                    x: [0, 502, 502, 0],
+                    z: [-500, -500, -500, -500],
+                    y: [500, 500, -500, -500]
+                }, {
+                    // wall
+                    fill: {r: 255, g: 255, b: 255, light: 1},
+                    x: [490, 1002, 1002, 490],
+                    z: [-500, -500, -500, -500],
+                    y: [500, 500, -500, -500]
+                }, {
+                    // shadow
+                    fill: {r: 0, g: 0, b: 0, a: 0.2},
+                    x: [-420, 420, 420, -420],
+                    z: [-500, -500, -500, -500],
+                    y: [150, 150, -320, -320]
+                }, {
+                    // shadow
+                    fill: {r: 0, g: 0, b: 0, a: 0.2},
+                    x: [-20, 20, 20, -20],
+                    z: [-500, -500, -500, -500],
+                    y: [250, 250, 150, 150]
+                }, {
+                    // shadow
+                    fill: {r: 0, g: 0, b: 0, a: 0.2},
+                    x: [-20, 20, 20, -20],
+                    z: [-500, -500, -500, -500],
+                    y: [-320, -320, -500, -500]
+                }, {
+                    // shadow
+                    fill: {r: 0, g: 0, b: 0, a: 0.2},
+                    x: [-20, 20, 10, -10],
+                    z: [-500, -500, -100, -100],
+                    y: [-500, -500, -500, -500]
+                }, {
+                    // base
+                    fill: {r: 32, g: 32, b: 32},
+                    x: [-50, 50, 50, -50],
+                    z: [-150, -150, -50, -50],
+                    y: [-500, -500, -500, -500]
+                }, {
+                    // support
+                    fill: {r: 16, g: 16, b: 16},
+                    x: [-10, 10, 10, -10],
+                    z: [-100, -100, -100, -100],
+                    y: [300, 300, -500, -500]
+                }, {
+                    // frame
+                    fill: {r: 255, g: 255, b: 255},
+                    x: [-320, -320, -320, -320],
+                    z: [0, -20, -20, 0],
+                    y: [-190, -190, 190, 190]
+                }, {
+                    // frame
+                    fill: {r: 255, g: 255, b: 255},
+                    x: [320, 320, 320, 320],
+                    z: [0, -20, -20, 0],
+                    y: [-190, -190, 190, 190]
+                },
+                {img: true},
+                {
+                    // ceilingLight
+                    fill: {r: 255, g: 128, b: 0},
+                    x: [-50, 50, 50, -50],
+                    z: [450, 450, 550, 550],
+                    y: [500, 500, 500, 500]
+                }, {
+                    // groundLight
+                    fill: {r: 255, g: 128, b: 0},
+                    x: [-50, 50, 50, -50],
+                    z: [450, 450, 550, 550],
+                    y: [-500, -500, -500, -500]
+                }
+            ],
+            options: {
+                imagesPath: ""
+            }
+        });
+    </script>
+    <script type="text/javascript" src="js/imageTransform3D.js"></script>
     <script type="text/javascript" src="js/md5.js"></script>
 </head>
 <body>
-<div id="mainmusic">
+<div id="code" style="display: none">
+    <canvas style="cursor: move;" height="933" width="1920" id="canvas">你的浏览器不支持HTML5画布技术，请使用谷歌浏览器。</canvas>
 </div>
-<div id="mainDiv">
-    <div id="content">
-        <div id="code" style="display: none;">
-            <span class="comments">/**</span><br/>
-            <span class="space"/><span class="comments">*2016-06-19 </span><span
-                class="keyword">我们第一次在南昌万达乐园牵手</span><br/>
-            <span class="space"/><span class="comments">*2016-06-20 </span><span class="keyword">我们决定在一起，第一次在万达约会</span><br/>
-            <span class="space"/><span class="comments">*2016-07-31 </span><span class="keyword">我们在杭州第一次接吻</span><br/>
-            <span class="space"/><span class="comments">*2016-09-07 </span><span class="keyword">你第一次在我身上盖章</span><br/>
-            <span class="space"/><span class="comments">*2017-01-02 </span><span
-                class="keyword">我们第一次无比紧张担心你</span><br/>
-            <span class="space"/><span class="comments">*2017-02-18 </span><span class="keyword">我们一次一起洗澡</span><br/>
-            <span class="space"/><span class="comments">*2017-04-04 </span><span class="keyword">你第一次叫我老公</span><br/>
-            <span class="space"/><span class="comments">**/</span><br/>
-            <img src="http://www.w3school.com.cn/i/eg_tulip.jpg" alt="邓丽梅，我爱你"/><br>
-            <img src="http://www.w3school.com.cn/i/eg_tulip.jpg" alt="邓丽梅，我爱你"/><br>
-            <span class="comments">写给世界上最美我最爱的女孩：</span><br/>
-            <span class="placeholder"/>老婆，虽然你现在不想我这样叫你，但是我很早很早就想着要这样叫你，早到我们都还在平川的时候。可能在高一的时候就对你有不一样的感觉吧，只是我自己没有发现，每次都会比较关注你的一举一动。到了高二，开始不能每天见到你的时候，才发觉我是真的喜欢上了你，每天会想你。想着你的笑，你的美。<br/>
-            <br>
-            <br>
-            有个男生想和你说:<br/>
-            <span class="placeholder"/><span class="comments">邓丽梅，黄剑冬会娶你，会一直一直宠着你，爱着你的。</span><br/>
-        </div>
-        <div id="loveHeart">
-            <canvas id="garden"></canvas>
-            <div id="words">
-                <div id="messages">
-                    亲爱的，这是我们相爱在一起的时光。
-                    <div id="elapseClock"></div>
-                </div>
-                <div id="loveu">
-                    爱你直到永永远远。<br/>
-                    <div class="signature">---小和尚</div>
-                </div>
-            </div>
-        </div>
-    </div>
+<!-- dhteumeuleu nav menu -->
+<div id="nav">
+    <input name="nav-switch" id="nav-switch" type="checkbox">
 </div>
+<!-- end of dhteumeuleu nav menu -->
+<div style="position: absolute; top: 20px; right: 20px;">
+    <style type="text/css">
+        .Qg {
+            height: 30px;
+        }
 
+        .iI {
+            display: inline-block;
+            height: 16px;
+            margin-bottom: 3px;
+            vertical-align: middle;
+            width: 16px;
+        }
+
+        .jI {
+            margin-left: 2px;
+            color: #000000;
+        }
+
+        .RF {
+            float: left;
+        }
+
+        .Dg {
+            background-color: #FFFFFF;
+            border: 1px solid #D9D9D9;
+            border-radius: 3px;
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+            cursor: pointer;
+            float: left;
+            height: 28px;
+            line-height: 28px;
+            margin-left: 8px;
+            outline: medium none;
+            padding: 0 10px;
+            transition: background-color 0.218s ease 0s, border-color 0.218s ease 0s, box-shadow 0.218s ease 0s;
+            width: auto;
+        }
+
+        .RF {
+            border-radius: 0 0 3px;
+            height: 100%;
+            line-height: 30px;
+            outline: medium none;
+            overflow: hidden;
+            padding-left: 7px;
+            padding-right: 16px;
+            position: relative;
+        }
+
+        .IH {
+            display: inline-block;
+            max-width: 200px;
+        }
+
+        .JH {
+            display: inline-block;
+            margin-right: 4px;
+            margin-top: 1px;
+        }
+
+        .ho {
+            border-radius: 2px;
+        }
+    </style>
+    <form method='post' enctype="multipart/form-data" action="loveheart.html">
+        <div class="Qg" style="display: none">
+            <button class="Dg" ><span class="tf"><span class="iI"></span><span class="MM jI">冬哥哥，我也爱你</span></span></button>
+
+        </div>
+    </form>
+</div>
+<script type="text/javascript" src="js/jquery-1.js"></script>
+<script type="text/javascript" src="js/util.js"></script>
+<script type="text/javascript" src="js/ga.js"></script>
 <script type="text/javascript">
     var offsetX = $("#loveHeart").width() / 2;
     var offsetY = $("#loveHeart").height() / 2 - 55;
@@ -72,67 +491,36 @@
         if (dlm_date)//如果返回的有内容
         {
             if (md5(dlm_date) == "c78b6df36b8663d1fbcbe484e7961d28") {
-                hmbd();
+                do_success();
             }
             else {
+                do_error();
                 do_input("亲爱的，输入的8位数日期不对哦");
             }
         }
         else {
-            do_input("亲爱的，请输入日期哦")
+            do_error();
+            do_input("亲爱的，请输入8位数日期哦");
         }
     }
-    function hmbd() {
+
+    function do_success() {
         $("#code").css("display", "block");
-        var together = new Date("2016-06-20 10:34:00");
-        //together.setFullYear(2016, 6, 20);
-        //together.setHours(10);
-        //together.setMinutes(34);
-        //together.setSeconds(0);
-        //together.setMilliseconds(0);
-
-        if (!document.createElement('canvas').getContext) {
-            var msg = document.createElement("div");
-            msg.id = "errorMsg";
-            msg.innerHTML = "请使用高级浏览器";
-            document.body.appendChild(msg);
-            $("#code").css("display", "none");
-            $("#copyright").css("position", "absolute");
-            $("#copyright").css("bottom", "10px");
-            document.execCommand("stop");
-        } else {
-            setTimeout(function () {
-                startHeartAnimation();
-            }, 25 * 1000);
-            // 添加自动播放音乐
-            //add_music();
-            timeElapse(together);
-            setInterval(function () {
-                timeElapse(together);
-            }, 500);
-            adjustCodePosition();
-            $("#code").typewriter();
-        }
+        $(".Qg").css("display", "block");
     }
 
-    function add_music() {
-        $("#mainmusic").append("<audio id='audiomusic' controls='controls' autoplay='autoplay' hidden><source src='http://www.w3school.com.cn/i/song.mp3' type='audio/mpeg' /></audio>");
-        $("#audiomusic").attr("loop", true);
+    function do_error() {
+        $("#code").css("display", "none");
+        $(".Qg").css("display", "none");
     }
     /*
-     setInterval(function () {
-     $('html,body').animate({scrollTop: document.body.clientHeight + 'px'}, 1000);
-     //document.documentElement.scrollTop = document.body.clientHeight + 'px';
-     }, 100);
-     */
-    /*
-    $(window).scroll(function () {
-        //执行处理的代码
-        $('html,body').animate({scrollTop: document.body.clientHeight + 'px'}, 1000);
+    $('.Qg').click(function () {
+        window.location.href = "loveheart.html"
     });
     */
     //window.onload = do_input("");
-    window.onload = hmbd;
+    window.onload = do_success();
 </script>
+
 </body>
 </html>

@@ -1,0 +1,133 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+    <title>邓丽梅我爱你</title>
+
+    <style type="text/css">
+        @font-face {
+            font-family: digit;
+        }
+    </style>
+    <link href="css/loveheart.css" type="text/css" rel="stylesheet">
+    <script type="text/javascript" src="js/jquery.js"></script>
+    <script type="text/javascript" src="js/garden.js"></script>
+    <script type="text/javascript" src="js/functions.js"></script>
+    <script type="text/javascript" src="js/md5.js"></script>
+</head>
+<body>
+<div id="mainmusic">
+</div>
+<div id="mainDiv">
+    <div id="content">
+        <div id="code">
+            <span class="comments">/**</span><br/>
+            <span class="space"/><span class="comments">*2016-06-19 </span><span
+                class="keyword">我们第一次在南昌万达乐园牵手</span><br/>
+            <span class="space"/><span class="comments">*2016-06-20 </span><span class="keyword">我们决定在一起，第一次在万达约会</span><br/>
+            <span class="space"/><span class="comments">*2016-07-31 </span><span class="keyword">我们在杭州第一次接吻</span><br/>
+            <span class="space"/><span class="comments">*2016-09-07 </span><span class="keyword">你第一次在我身上盖章</span><br/>
+            <span class="space"/><span class="comments">*2017-01-02 </span><span
+                class="keyword">我们第一次无比紧张担心你</span><br/>
+            <span class="space"/><span class="comments">*2017-02-18 </span><span class="keyword">我们一次一起洗澡</span><br/>
+            <span class="space"/><span class="comments">*2017-04-04 </span><span class="keyword">你第一次叫我老公</span><br/>
+            <span class="space"/><span class="comments">**/</span><br/>
+            <span class="comments">写给世界上最美我最爱的女孩：</span><br/>
+            <span class="placeholder"/>老婆，虽然你现在不喜欢我这样叫你，但是我很早很早就想着要这样叫你，早到我们都还在平川的时候。可能在高一的时候就对你有不一样的感觉吧，只是我自己没有发现，每次都会比较关注你的一举一动。到了高二，开始不能每天见到你的时候，才发觉我是真的喜欢上了你，每天会想你。想着你的笑，你的美。你说感觉我们之前没什么接触，其实不是的呀，在高二的时候我是找了各种理由借口来和你聊天的，经常发短信给你，特意让你帮忙写小作文。以前只能存一百來条短信的手机，满满存了你的信息，超过了条数都不舍得删。<br/>
+            <span class="placeholder"/>邓丽梅，我真的真的觉得你很好，能遇到你，喜欢你，爱上你，和你在一起真的好幸福。我也希望等我们老了的时候，我们可以一直相拥着回想我们甜蜜的故事，你还是我的小笨蛋，我是你的冬哥哥。<br>
+            <span class="placeholder"/>平时有很多话想说，很多为你做好一切，照顾好你，可以很多时候没有好好保护你，呵护你，在我们在一起300天的日子里，我们向我的小媳妇保证，永远呵护你，爱着你。<br>
+            <br>
+            有个男生想和你说:<br/>
+            <span class="placeholder"/><span class="comments">邓丽梅，黄剑冬会娶你，会一直一直宠着你，爱着你的。</span><br/>
+        </div>
+        <div id="loveHeart">
+            <canvas id="garden"></canvas>
+            <div id="words">
+                <div id="messages">
+                    亲爱的，这是我们相爱在一起的时光。
+                    <div id="elapseClock"></div>
+                </div>
+                <div id="loveu">
+                    爱你直到永永远远。<br/>
+
+                    <div class="signature">---小和尚</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    var offsetX = $("#loveHeart").width() / 2;
+    var offsetY = $("#loveHeart").height() / 2 - 55;
+    var together = new Date("2016-06-20 10:34:00");
+    function do_check() {
+        var previous_url = document.referrer;
+        //var previous_url = top.document.referrer;
+        //var previous_url = window.parent.document.referrer;
+        if (previous_url != "5716a07278fc0f79bef2bd597571bb49") {
+            hmbd();
+        }
+        else {
+            $("#code").html("");
+        }
+    }
+    function hmbd() {
+        $("#code").css("display", "block");
+        var together = new Date("2016-06-20 10:34:00");
+        //together.setFullYear(2016, 6, 20);
+        //together.setHours(10);
+        //together.setMinutes(34);
+        //together.setSeconds(0);
+        //together.setMilliseconds(0);
+
+        if (!document.createElement('canvas').getContext) {
+            var msg = document.createElement("div");
+            msg.id = "errorMsg";
+            msg.innerHTML = "请使用高级浏览器";
+            document.body.appendChild(msg);
+            $("#code").css("display", "none");
+            $("#copyright").css("position", "absolute");
+            $("#copyright").css("bottom", "10px");
+            document.execCommand("stop");
+        } else {
+            setTimeout(function () {
+                startHeartAnimation();
+            }, 25 * 1000);
+            // 添加自动播放音乐
+            add_music();
+            timeElapse(together);
+            setInterval(function () {
+                timeElapse(together);
+            }, 500);
+            // 设置顶部距离
+            // adjustCodePosition();
+            $("#code").typewriter();
+        }
+    }
+
+    function add_music() {
+        $("#mainmusic").append("<audio id='audiomusic' controls='controls' autoplay='autoplay' hidden><source src='music/最高的幸运.mp3' type='audio/mpeg' /></audio>");
+        $("#audiomusic").attr("loop", true);
+    }
+    window.setTimeout(function () {
+        $("#mainmusic").html("");
+    }, 60 * 1000);
+
+    /*
+     setInterval(function () {
+     $('html,body').animate({scrollTop: document.body.clientHeight + 'px'}, 1000);
+     //document.documentElement.scrollTop = document.body.clientHeight + 'px';
+     }, 100);
+     */
+    /*
+     $(window).scroll(function () {
+     //执行处理的代码
+     $('html,body').animate({scrollTop: document.body.clientHeight + 'px'}, 1000);
+     });
+     */
+    window.onload = do_check();
+</script>
+</body>
+</html>

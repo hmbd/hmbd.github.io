@@ -80,7 +80,6 @@ function startHeartAnimation() {
                 if (current=="" || current==null || current.replace(/(^s*)|(s*$)/g, "").length ==0) {
 					clearInterval(timer);
 				}
-                console.log("current:"+typeof current + current);
 				if (current == '<') {
 					progress = str.indexOf('>', progress) + 1;
 				} else {
@@ -91,8 +90,9 @@ function startHeartAnimation() {
 				if (progress >= str.length) {
 					clearInterval(timer);
 				}
-				$('html,body').animate({scrollTop: document.body.clientHeight + 'px'}, 1000);
-			}, 75);
+				// 永远置底
+				//$('html,body').animate({scrollTop: document.body.clientHeight + 'px'}, 1000);
+			}, 300);
 		});
 		return this;
 	};
