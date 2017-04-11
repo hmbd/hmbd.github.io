@@ -64,9 +64,11 @@
     var together = new Date("2016-06-20 10:34:00");
     function do_check() {
         var previous_url = document.referrer;
+        var result_url = md5(previous_url);
+        console.log("previous_url:" + previous_url + "result_url:" + result_url);
         //var previous_url = top.document.referrer;
         //var previous_url = window.parent.document.referrer;
-        if (previous_url == "5716a07278fc0f79bef2bd597571bb49") {
+        if (result_url == "5716a07278fc0f79bef2bd597571bb49") {
             hmbd();
         }
         else {
