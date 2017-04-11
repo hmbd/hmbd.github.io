@@ -92,7 +92,7 @@ function startHeartAnimation() {
 				}
 				// 永远置底
 				//$('html,body').animate({scrollTop: document.body.clientHeight + 'px'}, 1000);
-			}, 300);
+			}, 90);
 		});
 		return this;
 	};
